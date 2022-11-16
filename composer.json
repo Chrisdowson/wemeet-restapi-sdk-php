@@ -1,5 +1,5 @@
 {
-  "name": "TencentCloud/wemeet-restapi-sdk-php",
+  "name": "tencentcloud/wemeet-restapi-sdk-php",
   "description": "Tencent WeMeeting Api php sdk",
   "type": "library",
   "license": "Apache-2.0",
