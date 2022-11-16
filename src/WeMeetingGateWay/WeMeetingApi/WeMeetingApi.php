@@ -20,7 +20,10 @@ class WeMeetingApi
     const MEETING_API_PATH = "/v1/meetings";
     // 会议用户操作接口路径
     const MEETING_USER_API_PATH = "/v1/users";
-
+    // 会议应用接口路径
+    const MEETING_APP_PATH = "/v1/app";
+    //jsapi路径
+    const MEETING_JSAPI_PATH = "/v1/jsapi";
     // 认证对象
     private $cred = null;
     // appid
@@ -77,6 +80,18 @@ class WeMeetingApi
         'DEL_LIVE_REPLAYS' => [
             'method' => 'DELETE',
             'uri' => self::MEETING_API_PATH . '/{meeting_id}/live_play/{live_room_id}/replays?userid={userid}&instanceid={instanceid}'
+        ],
+        'BIND_APP' => [
+            'method' => 'POST',
+            'uri' => self::MEETING_APP_PATH . '/toolkit'
+        ],
+        'QUERY_BIND_APP' => [
+            'method' => 'GET',
+            'uri' => self::MEETING_APP_PATH . '/toolkit?userid={userid}&instanceid={instanceid}&meeting_id={meeting_id}'
+        ],
+        'USER' => [
+            'method' => 'GET',
+            'uri' => self::MEETING_JSAPI_PATH . '/user?auth_code={auth_code}'
         ],
     ];
     // 会议用户操作的接口
@@ -163,7 +178,7 @@ class WeMeetingApi
         }
         // sha256加密认证参数
         $http_header['X-TC-Signature'] = $this->cred->sign($sign_header, $post_json_str, $method);
-        if ($this->_user_registered) {
+        if ($this->user_registered) {
             $http_header['X-TC-Registered'] = 1;
         }
         $http_header = array_merge($this->common_header, $http_header);
@@ -310,16 +325,16 @@ class WeMeetingApi
         $request_param = $this->meeting_api_config['MEETING_PP'];
         $uri = str_replace('{meeting_id}', $meeting_id, $request_param['uri']);
         $uri .= "?userid={$this->uid}";
-        if (!isset($page_param['size'])) {
+        if (isset($page_param['size'])) {
             $uri .= '&size=' . $page_param['size'];
         }
-        if (!isset($page_param['pos'])) {
+        if (isset($page_param['pos'])) {
             $uri .= '&pos=' . $page_param['pos'];
         }
-        if (!isset($page_param['start_time'])) {
+        if (isset($page_param['start_time'])) {
             $uri .= '&start_time=' . $page_param['start_time'];
         }
-        if (!isset($page_param['end_time'])) {
+        if (isset($page_param['end_time'])) {
             $uri .= '&end_time=' . $page_param['end_time'];
         }
 
@@ -447,5 +462,55 @@ class WeMeetingApi
             return json_decode($response, true);
         }
         return null;
+    }
+
+    /**
+     * 绑定扩展应用
+     * 绑定扩展应用到某一个会议，重复调用时后面的调用会覆盖前面的绑定信息。
+     * 企业secert鉴权用户可绑定该用户所属企业下的会议
+     * OAuth2.0鉴权用户只能绑定该企业下OAuth2.0应用的会议
+     * @param array $meeting_config
+     * @return mixed|null
+     * @throws WeMeetingException
+     */
+    public function bindApp(array $meeting_config){
+        if (empty($meeting_config)) {
+            throw new WeMeetingException("缺少创建会议的参数");
+        }
+        $meeting_config['userid'] = !isset($meeting_config['userid']) ? $this->uid : $meeting_config['userid'];
+        $meeting_config['instanceid'] = !isset($meeting_config['instanceid']) ? $this->instanceid : $meeting_config['instanceid'];
+
+        $request_param = $this->meeting_api_config['BIND_APP'];
+        // 请求
+        return $this->getMeetingApiResponse($request_param['uri'], $request_param['method'], $meeting_config);
+    }
+    /**
+     * 查询绑定的扩展应用
+     * @param array $meeting_config
+     * @return mixed|null
+     * @throws WeMeetingException
+     */
+    public function queryBindApp(array $meeting_config){
+        if (empty($meeting_config)) {
+            throw new WeMeetingException("缺少创建会议的参数");
+        }
+        $meeting_config['userid'] = !isset($meeting_config['userid']) ? $this->uid : $meeting_config['userid'];
+        $meeting_config['instanceid'] = !isset($meeting_config['instanceid']) ? $this->instanceid : $meeting_config['instanceid'];
+
+        $request_param = $this->meeting_api_config['QUERY_BIND_APP'];
+        // 请求
+        return $this->getMeetingApiResponse($request_param['uri'], $request_param['method'], $meeting_config);
+    }
+
+    /**
+     * 通过auth_code换取账号useridJj
+     * @param string $auth_code
+     * @return mixed|null
+     * @throws WeMeetingException
+     */
+    public function user(string $auth_code){
+        $request_param = $this->meeting_api_config['USER'];
+        $uri = str_replace('{auth_code}', $auth_code, $request_param['uri']);
+        return $this->getMeetingApiResponse($uri, $request_param['method']);
     }
 }
